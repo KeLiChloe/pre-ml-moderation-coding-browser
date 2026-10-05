@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pre-ML moderation coding browser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Literata:opsz,wght@7..72,500;7..72,650&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">Human–AI theory building · pre-ML SOI</p>
+        <h1>Moderation coding browser</h1>
+      </div>
+      <p class="meta" id="run-meta"></p>
+    </div>
+  </header>
+
+  <nav class="task-nav" aria-label="Task">
+    <button type="button" class="task-btn is-active" data-task="racial_inequality">Racial inequality</button>
+    <button type="button" class="task-btn" data-task="gender_inequality">Gender inequality</button>
+  </nav>
+
+  <div class="toolbar">
+    <div class="group-nav" id="group-nav" aria-label="Group"></div>
+    <div class="filters">
+      <label class="search">
+        <span>Search ID</span>
+        <input id="search" type="search" placeholder="participant id" autocomplete="off" />
+      </label>
+      <label class="filter">
+        <span>Classification</span>
+        <select id="class-filter">
+          <option value="">All pair classifications</option>
+          <option value="terminal_curvature">terminal_curvature</option>
+          <option value="mixed_terminal">mixed_terminal</option>
+          <option value="nonterminal_upstream_interaction">nonterminal_upstream_interaction</option>
+          <option value="restatement_only">restatement_only</option>
+          <option value="not_addressed">not_addressed</option>
+          <option value="unclear">unclear</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <p class="status" id="status"></p>
+  <main id="list" class="theory-list"></main>
+
+  <script src="app.js"></script>
+</body>
+</html>
