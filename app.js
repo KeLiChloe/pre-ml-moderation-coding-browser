@@ -4,7 +4,11 @@ const GROUP_META = {
   "2": { key: "genai", label: "GenAI", pill: "genai" },
 };
 
+const PHASE_LABEL = { pre: "Pre-ML", post: "Post-ML" };
+
 const state = {
+  datasets: { pre: null, post: null },
+  phase: "pre",
   records: [],
   task: "racial_inequality",
   group: "all",
@@ -17,6 +21,7 @@ const el = {
   status: document.getElementById("status"),
   groupNav: document.getElementById("group-nav"),
   meta: document.getElementById("run-meta"),
+  eyebrow: document.getElementById("eyebrow"),
   search: document.getElementById("search"),
   classFilter: document.getElementById("class-filter"),
 };
@@ -27,6 +32,10 @@ function escapeHtml(text) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function activeDataset() {
+  return state.datasets[state.phase] || {};
 }
 
 function countByGroup(task) {
@@ -62,7 +71,7 @@ function filteredRecords() {
     if (state.group !== "all" && record.group_code !== state.group) return false;
     if (q && !record.participant_id.toLowerCase().includes(q)) return false;
     if (state.classification) {
-      const hit = record.coding.pairs.some(
+      const hit = (record.coding?.pairs || []).some(
         (pair) => pair.primary_classification === state.classification,
       );
       if (!hit) return false;
@@ -79,18 +88,47 @@ function formatYesNo(value) {
   return escapeHtml(raw);
 }
 
+function formatSign(value) {
+  if (value == null || value === "") return "—";
+  const raw = String(value);
+  const cls = raw === "+" ? "sign-pos" : raw === "-" ? "sign-neg" : "";
+  return `<span class="sign ${cls}">${escapeHtml(raw)}</span>`;
+}
+
+function pairHeading(pair) {
+  if (state.phase === "post") {
+    const source = pair.source === "ml_selected" ? "ML" : "User";
+    const rank = pair.ml_rank ?? pair.user_rank ?? pair.rank ?? "—";
+    return `${source} rank ${escapeHtml(rank)}`;
+  }
+  return `Pair ${escapeHtml(pair.rank)}`;
+}
+
+function signMatchValue(pair) {
+  const sign = pair.interaction_sign || {};
+  if (state.phase === "post") {
+    return sign.consistent_with_sign || "—";
+  }
+  return sign.consistent_with_predicted_sign || "—";
+}
+
 function renderPair(pair) {
   const features = `${escapeHtml(pair.features[0])} × ${escapeHtml(pair.features[1])}`;
-  const sign = pair.interaction_sign || {};
   const evidence = (pair.key_evidence || []).filter(Boolean);
   const curv = pair.curvature || {};
   const up = pair.upstream_interaction || {};
+  const predicted = pair.predicted_sign || pair.user_predicted_sign || "—";
+  const mlSign =
+    state.phase === "post"
+      ? `<div class="meta-row"><span class="meta-q">ML sign:</span><span class="meta-a">${formatSign(pair.ml_sign)}</span></div>`
+      : "";
+
   return `
     <article class="pair">
       <div class="pair-top">
         <div>
-          <div class="pair-rank">Pair ${escapeHtml(pair.rank)}</div>
-          <p class="pair-features">${features} <span class="sign ${pair.predicted_sign === "+" ? "sign-pos" : "sign-neg"}">(${escapeHtml(pair.predicted_sign)})</span></p>
+          <div class="pair-rank">${pairHeading(pair)}</div>
+          <p class="pair-features">${features} <span class="sign ${predicted === "+" ? "sign-pos" : predicted === "-" ? "sign-neg" : ""}">(${escapeHtml(predicted)})</span></p>
         </div>
       </div>
       <div class="class-badge ${escapeHtml(pair.primary_classification)}">${escapeHtml(pair.primary_classification)}</div>
@@ -98,8 +136,9 @@ function renderPair(pair) {
         <div class="meta-row"><span class="meta-q">addressed:</span><span class="meta-a">${formatYesNo(pair.addressed)}</span></div>
         <div class="meta-row"><span class="meta-q">curvature:</span><span class="meta-a">${formatYesNo(curv.present || "—")}</span></div>
         <div class="meta-row"><span class="meta-q">upstream:</span><span class="meta-a">${formatYesNo(up.present || "—")}</span></div>
-        <div class="meta-row"><span class="meta-q">sign match:</span><span class="meta-a">${formatYesNo(sign.consistent_with_predicted_sign || "—")}</span></div>
-        <div class="meta-row"><span class="meta-q">implied sign:</span><span class="meta-a">${escapeHtml(sign.mechanism_implied_sign || "—")}</span></div>
+        ${mlSign}
+        <div class="meta-row"><span class="meta-q">sign match:</span><span class="meta-a">${formatYesNo(signMatchValue(pair))}</span></div>
+        <div class="meta-row"><span class="meta-q">implied sign:</span><span class="meta-a">${escapeHtml((pair.interaction_sign || {}).mechanism_implied_sign || "—")}</span></div>
       </div>
       ${
         evidence.length
@@ -125,6 +164,10 @@ function renderPair(pair) {
 function renderTheory(record) {
   const pairs = record.coding?.pairs || [];
   const summary = record.coding?.causal_reconstruction?.summary || "";
+  const pairLabel =
+    state.phase === "post"
+      ? `${pairs.length} theory × pair units (3 user-selected + 3 ML)`
+      : "Three theory × pair units";
   return `
     <section class="theory" id="${escapeHtml(record.participant_id)}-${escapeHtml(record.task)}">
       <div class="theory-head">
@@ -142,18 +185,38 @@ function renderTheory(record) {
             : ""
         }
         <div>
-          <p class="block-label">Three theory × pair units</p>
-          <div class="pairs">${pairs.map(renderPair).join("")}</div>
+          <p class="block-label">${pairLabel}</p>
+          <div class="pairs ${state.phase === "post" ? "pairs-post" : ""}">${pairs.map(renderPair).join("")}</div>
         </div>
       </div>
     </section>
   `;
 }
 
+function updateMeta() {
+  const data = activeDataset();
+  const schema = data.coding_schema ? `<br />schema ${escapeHtml(data.coding_schema)}` : "";
+  el.eyebrow.textContent = `Human–AI theory building · ${PHASE_LABEL[state.phase]} SOI`;
+  el.meta.innerHTML = `model ${escapeHtml(data.model || "—")}<br />reasoning ${escapeHtml(data.reasoning_effort || "—")}${schema}<br />${state.records.length} records`;
+}
+
+function setPhase(phase) {
+  if (!state.datasets[phase]) return;
+  state.phase = phase;
+  state.records = state.datasets[phase].records || [];
+  state.group = "all";
+  document.querySelectorAll(".phase-btn").forEach((node) => {
+    node.classList.toggle("is-active", node.dataset.phase === phase);
+  });
+  updateMeta();
+  render();
+}
+
 function render() {
   renderGroupNav();
   const rows = filteredRecords();
-  el.status.textContent = `${rows.length} theories · ${rows.length * 3} theory–pair units shown`;
+  const pairCount = rows.reduce((n, record) => n + (record.coding?.pairs || []).length, 0);
+  el.status.textContent = `${rows.length} theories · ${pairCount} theory–pair units shown`;
   if (!rows.length) {
     el.list.innerHTML = `<p class="empty">No theories match the current filters.</p>`;
     return;
@@ -162,6 +225,9 @@ function render() {
 }
 
 function bind() {
+  document.querySelectorAll(".phase-btn").forEach((button) => {
+    button.addEventListener("click", () => setPhase(button.dataset.phase));
+  });
   document.querySelectorAll(".task-btn").forEach((button) => {
     button.addEventListener("click", () => {
       document.querySelectorAll(".task-btn").forEach((node) => node.classList.remove("is-active"));
@@ -192,9 +258,18 @@ async function main() {
   const response = await fetch("data.json");
   if (!response.ok) throw new Error(`Failed to load data.json (${response.status})`);
   const data = await response.json();
-  state.records = data.records || [];
-  el.meta.innerHTML = `model ${escapeHtml(data.model || "—")}<br />reasoning ${escapeHtml(data.reasoning_effort || "—")}<br />${state.records.length} records`;
-  render();
+  if (data.pre && data.post) {
+    state.datasets.pre = data.pre;
+    state.datasets.post = data.post;
+  } else {
+    // Backward compatible with older single-phase data.json
+    state.datasets.pre = {
+      model: data.model,
+      reasoning_effort: data.reasoning_effort,
+      records: data.records || [],
+    };
+  }
+  setPhase("pre");
 }
 
 main().catch((error) => {
