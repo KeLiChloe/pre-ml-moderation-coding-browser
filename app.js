@@ -88,11 +88,12 @@ function formatYesNo(value) {
   return escapeHtml(raw);
 }
 
-function formatSign(value) {
+function formatMlSign(value) {
   if (value == null || value === "") return "—";
   const raw = String(value);
-  const cls = raw === "+" ? "sign-pos" : raw === "-" ? "sign-neg" : "";
-  return `<span class="sign ${cls}">${escapeHtml(raw)}</span>`;
+  if (raw === "+") return `<span class="yn yn-yes">positive</span>`;
+  if (raw === "-") return `<span class="yn yn-no">negative</span>`;
+  return escapeHtml(raw);
 }
 
 function pairHeading(pair) {
@@ -118,9 +119,9 @@ function renderPair(pair) {
   const curv = pair.curvature || {};
   const up = pair.upstream_interaction || {};
   const predicted = pair.predicted_sign || pair.user_predicted_sign || "—";
-  const mlSign =
+  const mlSignRow =
     state.phase === "post"
-      ? `<div class="meta-row"><span class="meta-q">ML sign:</span><span class="meta-a">${formatSign(pair.ml_sign)}</span></div>`
+      ? `<div class="meta-row"><span class="meta-q">ML sign:</span><span class="meta-a">${formatMlSign(pair.ml_sign)}</span></div>`
       : "";
 
   return `
@@ -136,9 +137,9 @@ function renderPair(pair) {
         <div class="meta-row"><span class="meta-q">addressed:</span><span class="meta-a">${formatYesNo(pair.addressed)}</span></div>
         <div class="meta-row"><span class="meta-q">curvature:</span><span class="meta-a">${formatYesNo(curv.present || "—")}</span></div>
         <div class="meta-row"><span class="meta-q">upstream:</span><span class="meta-a">${formatYesNo(up.present || "—")}</span></div>
-        ${mlSign}
         <div class="meta-row"><span class="meta-q">sign match:</span><span class="meta-a">${formatYesNo(signMatchValue(pair))}</span></div>
-        <div class="meta-row"><span class="meta-q">implied sign:</span><span class="meta-a">${escapeHtml((pair.interaction_sign || {}).mechanism_implied_sign || "—")}</span></div>
+        ${mlSignRow}
+        <div class="meta-row"><span class="meta-q">theory implied sign:</span><span class="meta-a">${escapeHtml((pair.interaction_sign || {}).mechanism_implied_sign || "—")}</span></div>
       </div>
       ${
         evidence.length

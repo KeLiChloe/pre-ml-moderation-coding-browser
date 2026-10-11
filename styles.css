@@ -344,7 +344,7 @@ h1 {
 
 .meta-row {
   display: grid;
-  grid-template-columns: 7.2rem minmax(0, 1fr);
+  grid-template-columns: 8.6rem minmax(0, 1fr);
   gap: 0.4rem;
   align-items: stretch;
 }
