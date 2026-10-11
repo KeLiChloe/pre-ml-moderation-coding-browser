@@ -88,14 +88,6 @@ function formatYesNo(value) {
   return escapeHtml(raw);
 }
 
-function formatMlSign(value) {
-  if (value == null || value === "") return "—";
-  const raw = String(value);
-  if (raw === "+") return `<span class="yn yn-yes">positive</span>`;
-  if (raw === "-") return `<span class="yn yn-no">negative</span>`;
-  return escapeHtml(raw);
-}
-
 function pairHeading(pair) {
   if (state.phase === "post") {
     const source = pair.source === "ml_selected" ? "ML" : "User";
@@ -113,23 +105,26 @@ function signMatchValue(pair) {
   return sign.consistent_with_predicted_sign || "—";
 }
 
+function pairSelectedSign(pair) {
+  if (state.phase === "post" && pair.source === "ml_selected") {
+    return pair.ml_sign || "—";
+  }
+  return pair.predicted_sign || pair.user_predicted_sign || "—";
+}
+
 function renderPair(pair) {
   const features = `${escapeHtml(pair.features[0])} × ${escapeHtml(pair.features[1])}`;
   const evidence = (pair.key_evidence || []).filter(Boolean);
   const curv = pair.curvature || {};
   const up = pair.upstream_interaction || {};
-  const predicted = pair.predicted_sign || pair.user_predicted_sign || "—";
-  const mlSignRow =
-    state.phase === "post"
-      ? `<div class="meta-row"><span class="meta-q">ML sign:</span><span class="meta-a">${formatMlSign(pair.ml_sign)}</span></div>`
-      : "";
+  const selectedSign = pairSelectedSign(pair);
 
   return `
     <article class="pair">
       <div class="pair-top">
         <div>
           <div class="pair-rank">${pairHeading(pair)}</div>
-          <p class="pair-features">${features} <span class="sign ${predicted === "+" ? "sign-pos" : predicted === "-" ? "sign-neg" : ""}">(${escapeHtml(predicted)})</span></p>
+          <p class="pair-features">${features} <span class="sign ${selectedSign === "+" ? "sign-pos" : selectedSign === "-" ? "sign-neg" : ""}">(${escapeHtml(selectedSign)})</span></p>
         </div>
       </div>
       <div class="class-badge ${escapeHtml(pair.primary_classification)}">${escapeHtml(pair.primary_classification)}</div>
@@ -138,7 +133,6 @@ function renderPair(pair) {
         <div class="meta-row"><span class="meta-q">curvature:</span><span class="meta-a">${formatYesNo(curv.present || "—")}</span></div>
         <div class="meta-row"><span class="meta-q">upstream:</span><span class="meta-a">${formatYesNo(up.present || "—")}</span></div>
         <div class="meta-row"><span class="meta-q">sign match:</span><span class="meta-a">${formatYesNo(signMatchValue(pair))}</span></div>
-        ${mlSignRow}
         <div class="meta-row"><span class="meta-q">theory implied sign:</span><span class="meta-a">${escapeHtml((pair.interaction_sign || {}).mechanism_implied_sign || "—")}</span></div>
       </div>
       ${
