@@ -118,6 +118,16 @@ function renderPair(pair) {
   const curv = pair.curvature || {};
   const up = pair.upstream_interaction || {};
   const selectedSign = pairSelectedSign(pair);
+  const notAddressed = pair.primary_classification === "not_addressed";
+  const metaBlock = notAddressed
+    ? ""
+    : `<div class="pair-meta">
+        <div class="meta-row"><span class="meta-q">addressed:</span><span class="meta-a">${formatYesNo(pair.addressed)}</span></div>
+        <div class="meta-row"><span class="meta-q">curvature:</span><span class="meta-a">${formatYesNo(curv.present || "—")}</span></div>
+        <div class="meta-row"><span class="meta-q">upstream:</span><span class="meta-a">${formatYesNo(up.present || "—")}</span></div>
+        <div class="meta-row"><span class="meta-q">sign match:</span><span class="meta-a">${formatYesNo(signMatchValue(pair))}</span></div>
+        <div class="meta-row"><span class="meta-q">theory implied sign:</span><span class="meta-a">${escapeHtml((pair.interaction_sign || {}).mechanism_implied_sign || "—")}</span></div>
+      </div>`;
 
   return `
     <article class="pair">
@@ -128,15 +138,9 @@ function renderPair(pair) {
         </div>
       </div>
       <div class="class-badge ${escapeHtml(pair.primary_classification)}">${escapeHtml(pair.primary_classification)}</div>
-      <div class="pair-meta">
-        <div class="meta-row"><span class="meta-q">addressed:</span><span class="meta-a">${formatYesNo(pair.addressed)}</span></div>
-        <div class="meta-row"><span class="meta-q">curvature:</span><span class="meta-a">${formatYesNo(curv.present || "—")}</span></div>
-        <div class="meta-row"><span class="meta-q">upstream:</span><span class="meta-a">${formatYesNo(up.present || "—")}</span></div>
-        <div class="meta-row"><span class="meta-q">sign match:</span><span class="meta-a">${formatYesNo(signMatchValue(pair))}</span></div>
-        <div class="meta-row"><span class="meta-q">theory implied sign:</span><span class="meta-a">${escapeHtml((pair.interaction_sign || {}).mechanism_implied_sign || "—")}</span></div>
-      </div>
+      ${metaBlock}
       ${
-        evidence.length
+        !notAddressed && evidence.length
           ? `<div>
               <p class="block-label strong-label">Key evidence for Classification</p>
               <ul class="evidence">${evidence.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
@@ -144,7 +148,7 @@ function renderPair(pair) {
           : ""
       }
       ${
-        curv.mechanism || up.mechanism
+        !notAddressed && (curv.mechanism || up.mechanism)
           ? `<div class="reasoning">
               <p class="block-label strong-label">LLM reasoning about curvature and upstream</p>
               ${curv.mechanism ? `<p class="mech"><strong>Curvature:</strong> ${escapeHtml(curv.mechanism)}</p>` : ""}
